@@ -5,8 +5,6 @@
 .env.production
 .phpactor.json
 .phpunit.result.cache
-/.codex
-/.cursor/
 /.idea
 /.nova
 /.phpunit.cache
@@ -26,6 +24,77 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 
-# Local AI tooling (machine-specific)
-/.remember
-/.mcp.json
+# ---------------------------------------------------------------
+# AI coding agents & assistants (local-only, never committed)
+# ---------------------------------------------------------------
+# Claude Code
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+.mcp.json
+# OpenAI Codex / generic agent instructions
+.codex/
+AGENTS.md
+AGENT.md
+.agents/
+.agent/
+# Devin
+.devin/
+devin.md
+# Cursor
+.cursor/
+.cursorrules
+.cursorignore
+.cursorindexingignore
+# GitHub Copilot
+.github/copilot-instructions.md
+.github/instructions/
+.github/prompts/
+.github/chatmodes/
+# Google Gemini
+.gemini/
+GEMINI.md
+# Windsurf / Codeium
+.windsurf/
+.windsurfrules
+.codeium/
+# Aider
+.aider*
+# Cline / Roo / Kilo Code
+.clinerules
+.clinerules/
+.cline/
+.roo/
+.roomodes
+.rooignore
+.kilocode/
+# JetBrains Junie / AI Assistant
+.junie/
+.aiassistant/
+# Amazon Q / Kiro
+.amazonq/
+.kiro/
+# Continue / OpenCode / Augment / Trae / Zed / Goose / Tabnine / Qodo
+.continue/
+.opencode/
+opencode.json
+.augment/
+.augment-guidelines
+.trae/
+.rules
+.goosehints
+.tabnine/
+.qodo/
+# MCP server configs
+mcp.json
+.vscode/mcp.json
+.cursor/mcp.json
+# Laravel Boost
+boost.json
+.ai/
+# Memory / session / indexing tools
+.remember/
+.ai-memory.toml
+.code-review-graph/
+.specstory/
+.superpowers/
