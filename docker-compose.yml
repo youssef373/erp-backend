@@ -1,0 +1,126 @@
+name: erp
+
+# Shared definition for every container that runs the Laravel code.
+# DB_* values are read from ./.env (the Laravel env file), which Compose
+# loads automatically for variable interpolation.
+x-laravel: &laravel
+  image: erp-backend:dev
+  volumes:
+    - .:/var/www/html
+    # vendor/ lives in a named volume so Linux-built packages never land
+    # on the Windows host and the bind mount stays fast.
+    - backend_vendor:/var/www/html/vendor
+  restart: unless-stopped
+
+services:
+  backend:
+    <<: *laravel
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Install/refresh dependencies on every start (no-op when up to date).
+    command: sh -c "composer install --no-interaction --prefer-dist && exec php-fpm"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          test -f vendor/autoload.php &&
+          php -r 'exit(@fsockopen("127.0.0.1", 9000) ? 0 : 1);'
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 300s
+
+  nginx:
+    image: nginx:1.29-alpine
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  queue:
+    <<: *laravel
+    command: php artisan queue:work redis --tries=3 --timeout=90
+    depends_on: &laravel-deps
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      # backend owns `composer install`; wait until vendor/ is ready.
+      backend:
+        condition: service_healthy
+
+  reverb:
+    <<: *laravel
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    ports:
+      - "8080:8080"
+    depends_on: *laravel-deps
+
+  scheduler:
+    <<: *laravel
+    command: php artisan schedule:work
+    depends_on: *laravel-deps
+
+  frontend:
+    build:
+      context: ../react-erb
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../react-erb:/app
+      # node_modules stays inside the container: native binaries (esbuild,
+      # rollup) are built for Linux and would break on the Windows host.
+      - frontend_node_modules:/app/node_modules
+    environment:
+      # File events from Windows bind mounts don't reach Linux containers,
+      # so Vite must poll for changes for hot reload to work.
+      VITE_USE_POLLING: "true"
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-erp_laravel}
+      MYSQL_USER: ${DB_USERNAME:-erp}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+    ports:
+      # Host port for DB tools (TablePlus, etc.). Not 3306/3307: XAMPP's
+      # MySQL and another local stack already use those.
+      - "${FORWARD_DB_PORT:-3308}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      # TCP ping only succeeds once the real server (not the init one) is up.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  backend_vendor:
+  frontend_node_modules:
