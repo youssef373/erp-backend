@@ -81,10 +81,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
 
       - name: Build frontend assets
         run: |
-          npm install
+          npm ci
           npm run build
 
       - name: Prepare application
